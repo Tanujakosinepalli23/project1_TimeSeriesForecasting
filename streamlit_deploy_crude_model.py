@@ -13,41 +13,70 @@ st.set_page_config(
 )
 
 # -------------------------
-# TITLE SECTION
+# TITLE
 # -------------------------
 st.title("🌍 Crude Oil Price Forecasting Dashboard")
 
 st.write(
 """
 This app forecasts crude oil prices using a time series model.  
-You can explore historical data, generate forecasts, and analyze trends.
+You can use the default dataset or upload your own CSV file.
 """
 )
 
 # -------------------------
-# LOAD DATA (NO UPLOAD)
+# DATA SOURCE SELECTION
 # -------------------------
-DATA_PATH = Path("Crude oil.csv")
+st.subheader("📂 Data Source")
 
-if not DATA_PATH.exists():
-    st.error("❌ 'Crude oil.csv' not found in project folder")
+option = st.radio(
+    "Choose data source:",
+    ["Use Default Dataset", "Upload Your Own CSV"]
+)
+
+df = None
+
+# -------------------------
+# DEFAULT DATA
+# -------------------------
+if option == "Use Default Dataset":
+    DATA_PATH = Path("Crude oil.csv")
+
+    if not DATA_PATH.exists():
+        st.error("❌ Default dataset not found")
+        st.stop()
+
+    df = pd.read_csv(DATA_PATH)
+    st.success("✅ Default dataset loaded")
+
+# -------------------------
+# UPLOAD DATA
+# -------------------------
+else:
+    uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
+
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+        st.success("✅ Uploaded dataset loaded")
+    else:
+        st.info("Please upload a CSV file to continue")
+        st.stop()
+
+# -------------------------
+# PREPROCESSING
+# -------------------------
+try:
+    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+    df = df.sort_values("Date")
+    df.set_index("Date", inplace=True)
+
+    series = df["Close/Last"].astype(float).ffill().bfill()
+except:
+    st.error("❌ CSV must contain 'Date' and 'Close/Last' columns")
     st.stop()
 
-df = pd.read_csv(DATA_PATH)
-
 # -------------------------
-# PREPROCESS
-# -------------------------
-df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
-df = df.sort_values("Date")
-df.set_index("Date", inplace=True)
-
-series = df["Close/Last"].astype(float).ffill().bfill()
-
-st.success("✅ Data loaded successfully!")
-
-# -------------------------
-# DATA SAMPLE
+# DATA PREVIEW
 # -------------------------
 st.subheader("📊 Historical Data Sample")
 st.dataframe(df.head(10), use_container_width=True)
@@ -63,15 +92,23 @@ st.line_chart(series)
 # -------------------------
 st.subheader("🔮 Forecast Future Prices")
 
-horizon = st.slider("Select number of days to forecast", 5, 60, 30)
+col1, col2 = st.columns([2,1])
 
-if st.button("🚀 Generate Forecast"):
+with col1:
+    horizon = st.slider("Select number of days to forecast", 5, 60, 30)
 
+with col2:
+    generate = st.button("🚀 Generate Forecast")
+
+# -------------------------
+# FORECAST LOGIC
+# -------------------------
+if generate:
     history = list(series)
     future_preds = []
 
     for _ in range(horizon):
-        yhat = np.mean(history[-5:])  # simple model
+        yhat = np.mean(history[-5:])
         future_preds.append(yhat)
         history.append(yhat)
 
@@ -81,7 +118,7 @@ if st.button("🚀 Generate Forecast"):
     st.success("✅ Forecast generated successfully!")
 
     # -------------------------
-    # FORECAST CHART
+    # CHART
     # -------------------------
     forecast_df = pd.DataFrame({
         "Recent Data": series[-200:],
@@ -94,6 +131,7 @@ if st.button("🚀 Generate Forecast"):
     # TABLE
     # -------------------------
     st.subheader("📅 Forecast Data")
+
     st.dataframe(
         forecast_series.reset_index().rename(columns={"index":"Date",0:"Forecast"}),
         use_container_width=True
