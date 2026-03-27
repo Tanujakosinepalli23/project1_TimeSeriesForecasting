@@ -105,10 +105,10 @@ with col2:
 # -------------------------
 if generate:
 
-    lags = 5  # important for sensitivity
+    lags = 5
 
     # -------------------------
-    # DIRECTIONAL ACCURACY (FIXED)
+    # DIRECTIONAL ACCURACY (HORIZON-DEPENDENT)
     # -------------------------
     train = series[:-horizon]
     test = series[-horizon:]
@@ -118,24 +118,29 @@ if generate:
 
     for _ in range(len(test)):
         if len(history) >= lags:
-            yhat = np.mean(history[-lags:])
+            recent = np.array(history[-lags:])
+            weights = np.arange(1, lags + 1)
+            yhat = np.sum(recent * weights) / np.sum(weights)
         else:
             yhat = np.mean(history)
 
         preds.append(yhat)
-        history.append(yhat)  # recursive prediction
+        history.append(yhat)
 
     preds = np.array(preds)
     actual = np.array(test)
 
-    actual_diff = np.sign(np.diff(actual))
-    pred_diff = np.sign(np.diff(preds))
+    actual_diff = np.diff(actual)
+    pred_diff = np.diff(preds)
 
-    min_len = min(len(actual_diff), len(pred_diff))
+    actual_dir = np.sign(actual_diff)
+    pred_dir = np.sign(pred_diff)
+
+    min_len = min(len(actual_dir), len(pred_dir))
 
     if min_len > 0:
         directional_accuracy = np.mean(
-            actual_diff[:min_len] == pred_diff[:min_len]
+            actual_dir[:min_len] == pred_dir[:min_len]
         ) * 100
     else:
         directional_accuracy = 0
@@ -150,7 +155,9 @@ if generate:
 
     for _ in range(horizon):
         if len(history) >= lags:
-            yhat = np.mean(history[-lags:])
+            recent = np.array(history[-lags:])
+            weights = np.arange(1, lags + 1)
+            yhat = np.sum(recent * weights) / np.sum(weights)
         else:
             yhat = np.mean(history)
 
