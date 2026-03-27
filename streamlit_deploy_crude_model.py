@@ -36,7 +36,9 @@ option = st.radio(
 
 df = None
 
-# Default dataset
+# -------------------------
+# DEFAULT DATA
+# -------------------------
 if option == "Use Default Dataset":
     DATA_PATH = Path("Crude oil.csv")
 
@@ -47,7 +49,9 @@ if option == "Use Default Dataset":
     df = pd.read_csv(DATA_PATH)
     st.success("✅ Default dataset loaded")
 
-# Upload dataset
+# -------------------------
+# UPLOAD DATA
+# -------------------------
 else:
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
@@ -102,7 +106,7 @@ with col2:
 if generate:
 
     # -------------------------
-    # DIRECTIONAL ACCURACY (FIXED)
+    # DIRECTIONAL ACCURACY (FIXED & DYNAMIC)
     # -------------------------
     train = series[:-horizon]
     test = series[-horizon:]
@@ -110,10 +114,11 @@ if generate:
     history = list(train)
     preds = []
 
-    for t in range(len(test)):
+    # Recursive prediction (NO leakage)
+    for _ in range(len(test)):
         yhat = np.mean(history[-5:])
         preds.append(yhat)
-        history.append(test.iloc[t])
+        history.append(yhat)
 
     preds = np.array(preds)
     actual = np.array(test)
