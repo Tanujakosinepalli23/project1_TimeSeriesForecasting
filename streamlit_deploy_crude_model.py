@@ -19,7 +19,7 @@ st.title("🌍 Crude Oil Price Forecasting Dashboard")
 
 st.write(
 """
-This app forecasts crude oil prices using a simple time series model.  
+This app forecasts crude oil prices using a time series model.  
 You can use the default dataset or upload your own CSV file.
 """
 )
@@ -92,7 +92,7 @@ st.line_chart(series)
 # -------------------------
 st.subheader("🔮 Forecast Future Prices")
 
-col1, col2 = st.columns([2, 1])
+col1, col2 = st.columns([2,1])
 
 with col1:
     horizon = st.slider("Select number of days to forecast", 5, 60, 30)
@@ -104,26 +104,21 @@ with col2:
 # FORECAST LOGIC
 # -------------------------
 if generate:
-
     history = list(series)
     future_preds = []
 
     for _ in range(horizon):
-        yhat = np.mean(history[-5:])  # simple moving average
+        yhat = np.mean(history[-5:])
         future_preds.append(yhat)
         history.append(yhat)
 
-    future_index = pd.date_range(
-        start=series.index[-1] + pd.Timedelta(days=1),
-        periods=horizon
-    )
-
+    future_index = pd.date_range(series.index[-1] + pd.Timedelta(days=1), periods=horizon)
     forecast_series = pd.Series(future_preds, index=future_index)
 
     st.success("✅ Forecast generated successfully!")
 
     # -------------------------
-    # FORECAST CHART
+    # CHART
     # -------------------------
     forecast_df = pd.DataFrame({
         "Recent Data": series[-200:],
@@ -133,25 +128,17 @@ if generate:
     st.line_chart(forecast_df)
 
     # -------------------------
-    # FORECAST TABLE (S.No starts from 1)
+    # TABLE
     # -------------------------
     st.subheader("📅 Forecast Data")
 
-    forecast_df_display = forecast_series.reset_index()
-    forecast_df_display.columns = ["Date", "Forecast"]
-
-    # Add Serial Number column
-    forecast_df_display.insert(0, "S.No", range(1, len(forecast_df_display) + 1))
-
-    st.dataframe(forecast_df_display, use_container_width=True)
+    st.dataframe(
+        forecast_series.reset_index().rename(columns={"index":"Date",0:"Forecast"}),
+        use_container_width=True
+    )
 
     # -------------------------
-    # DOWNLOAD OPTION
+    # DOWNLOAD
     # -------------------------
     csv = forecast_series.to_csv().encode("utf-8")
-    st.download_button(
-        "⬇️ Download Forecast",
-        csv,
-        "forecast.csv",
-        "text/csv"
-    )
+    st.download_button("⬇️ Download Forecast", csv, "forecast.csv")
