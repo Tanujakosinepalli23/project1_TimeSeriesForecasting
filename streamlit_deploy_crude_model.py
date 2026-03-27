@@ -25,7 +25,7 @@ You can use the default dataset or upload your own CSV file.
 )
 
 # -------------------------
-# DATA SOURCE SELECTION
+# DATA SOURCE
 # -------------------------
 st.subheader("📂 Data Source")
 
@@ -36,9 +36,6 @@ option = st.radio(
 
 df = None
 
-# -------------------------
-# DEFAULT DATA
-# -------------------------
 if option == "Use Default Dataset":
     DATA_PATH = Path("Crude oil.csv")
 
@@ -49,9 +46,6 @@ if option == "Use Default Dataset":
     df = pd.read_csv(DATA_PATH)
     st.success("✅ Default dataset loaded")
 
-# -------------------------
-# UPLOAD DATA
-# -------------------------
 else:
     uploaded_file = st.file_uploader("Upload CSV file", type=["csv"])
 
@@ -63,7 +57,7 @@ else:
         st.stop()
 
 # -------------------------
-# PREPROCESSING
+# PREPROCESS
 # -------------------------
 try:
     df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
@@ -72,7 +66,7 @@ try:
 
     series = df["Close/Last"].astype(float).ffill().bfill()
 except:
-    st.error("❌ CSV must contain 'Date' and 'Close/Last' columns")
+    st.error("❌ CSV must contain 'Date' and 'Close/Last'")
     st.stop()
 
 # -------------------------
@@ -101,9 +95,40 @@ with col2:
     generate = st.button("🚀 Generate Forecast")
 
 # -------------------------
-# FORECAST LOGIC
+# FORECAST + ACCURACY
 # -------------------------
 if generate:
+
+    # ---- Train/Test Split for Accuracy ----
+    split_idx = int(len(series) * 0.8)
+    train = series[:split_idx]
+    test = series[split_idx:]
+
+    # ---- Prediction for Accuracy ----
+    history = list(train)
+    preds = []
+
+    for t in range(len(test)):
+        yhat = np.mean(history[-5:])
+        preds.append(yhat)
+        history.append(test.iloc[t])
+
+    preds = np.array(preds)
+    actual = np.array(test)
+
+    # ---- Directional Accuracy ----
+    actual_diff = np.sign(np.diff(actual))
+    pred_diff = np.sign(np.diff(preds))
+
+    min_len = min(len(actual_diff), len(pred_diff))
+    directional_accuracy = np.mean(actual_diff[:min_len] == pred_diff[:min_len]) * 100
+
+    # ---- Display Accuracy ----
+    st.metric("🎯 Directional Accuracy (%)", f"{directional_accuracy:.2f}%")
+
+    # -------------------------
+    # FUTURE FORECAST
+    # -------------------------
     history = list(series)
     future_preds = []
 
@@ -128,14 +153,17 @@ if generate:
     st.line_chart(forecast_df)
 
     # -------------------------
-    # TABLE
+    # TABLE (FIXED INDEX)
     # -------------------------
     st.subheader("📅 Forecast Data")
 
-    st.dataframe(
-        forecast_series.reset_index().rename(columns={"index":"Date",0:"Forecast"}),
-        use_container_width=True
-    )
+    forecast_df_display = forecast_series.reset_index()
+    forecast_df_display.columns = ["Date", "Forecast"]
+
+    # Start index from 1
+    forecast_df_display.index = forecast_df_display.index + 1
+
+    st.dataframe(forecast_df_display, use_container_width=True)
 
     # -------------------------
     # DOWNLOAD
